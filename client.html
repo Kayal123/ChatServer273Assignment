@@ -1,0 +1,117 @@
+<html>
+<head>
+	<title>ChatClient</title>
+	<style>
+		#chat{
+			height:300px;
+            width:500px;
+		}
+		#contentWrap{
+            width:400px;
+			display: none;
+		}
+		#chatWrap{
+			float: left;
+			border: 1px #000 solid;
+		}
+		.error{
+			color: red;
+            font-style: italic;
+		}
+		.private{
+			color: green;
+			font-style: italic;
+		}
+	</style>
+</head>
+<body>
+	<div id="nickWrap">
+		<p id="nickError"></p>
+		<form id="setNick">
+            Username: <input type="text" id="userName"><br>
+            Password: <input type="password" id="userPassword"><br>
+            <input type="submit"></input>
+		</form>
+	</div>
+
+	<div id="contentWrap">
+		<div id="chatWrap">
+			<div id="chat"></div>
+		</div>
+        <form id="send-message">
+			<input size="35" id="message"></input>
+			<input type="submit"></input>
+		</form>
+		
+        <select id="users">
+            <option value="None">--All--</option>
+        </select>
+	</div>
+	
+	<script src="http://code.jquery.com/jquery-latest.min.js"></script>
+	<script src="/socket.io/socket.io.js"></script>
+	<script>
+		jQuery(function($){
+			var socket = io.connect();
+			var $nickForm = $('#setNick');
+			var $nickError = $('#nickError');
+			var $userNameBox = $('#userName');
+            var $passwordBox = $('#userPassword');
+			var $users = $('#users');
+			var $messageForm = $('#send-message');
+			var $messageBox = $('#message');
+			var $chat = $('#chat');
+            			
+			$nickForm.submit(function(e){
+				e.preventDefault();
+                document.title = $userNameBox.val()
+
+				socket.emit('new user', $userNameBox.val() +',' + $passwordBox.val(), function(data){
+					if(!data.trim()){
+						$('#nickWrap').hide();
+						$('#contentWrap').show();
+					} else{
+						$nickError.html(data);
+					}
+				});
+				
+                $passwordBox.val('');
+                $userNameBox.val('');
+                $userNameBox.focus();
+			});
+			
+            socket.on('usernames', function(data){
+				var html = '';
+                $('#users').empty();
+                var newOption = $('<option>');
+                newOption.attr('value',"--All--").text("--All--");
+                $('#users').append(newOption);
+                    
+				for(i=0; i < data.length; i++){
+                    var newOption = $('<option>');
+                    newOption.attr('value',data[i]).text(data[i]);
+                    $('#users').append(newOption);
+				}				
+			});
+			
+			$messageForm.submit(function(e){
+				e.preventDefault();
+                var txMsg = "/Msg " + $('#users').val() + " " + $messageBox.val();
+                               
+				socket.emit('send message', txMsg, function(data){
+					$chat.append('<span class="error">' + data + "</span><br/>");
+				});
+				$messageBox.val('');
+			});
+			
+			socket.on('new message', function(data){
+				$chat.append('<span class="msg"><b>' + data.nick + ': </b>' + data.msg + "</span><br/>");
+			});
+			
+			socket.on('private', function(data){
+				$chat.append('<span class="private"><b>' + data.nick + ': </b>' + data.msg + "</span><br/>");
+			});
+		});
+	</script>
+</body>
+</html>
